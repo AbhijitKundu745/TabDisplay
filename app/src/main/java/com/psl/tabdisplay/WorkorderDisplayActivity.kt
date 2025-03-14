@@ -25,6 +25,7 @@ import com.psl.seuicfixedreader.MQTT.MqttSubscriber
 import com.psl.tabdisplay.APIHelpers.APIConstants
 import com.psl.tabdisplay.APIHelpers.APIService
 import com.psl.tabdisplay.adapters.WorkOrderDetailsAdapter
+import com.psl.tabdisplay.database.DBHandler
 import com.psl.tabdisplay.databinding.ActivityWorkorderDisplayBinding
 import com.psl.tabdisplay.helper.AssetUtils
 import com.psl.tabdisplay.helper.ConnectionManager
@@ -84,11 +85,13 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
     private lateinit var confirmationDialog : Dialog
     private lateinit var customConfirmationDialog : Dialog
     private val handler = Handler(Looper.getMainLooper())
+    private lateinit var db : DBHandler
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = DataBindingUtil.setContentView(this, R.layout.activity_workorder_display)
 
+        db = DBHandler(context)
         cd = ConnectionManager(this, this)
         cd.registerNetworkCallback()
         sharedPreferencesManager = SharedPreferencesManager(context)
@@ -473,10 +476,15 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
                                                 jsonObject.get(APIConstants.K_MESSAGE)?.asString
                                                     ?: ""
                                             if (status) {
-                                                AssetUtils.showCommonBottomSheetErrorDialog(
+                                                AssetUtils.showCommonBottomSheetSuccessDialog(
                                                     context,
                                                     message
                                                 )
+                                                workOrderDetailsRecAdapter.notifyDataSetChanged()
+                                                workOrderDetailsDisAdapter.notifyDataSetChanged()
+                                                binding.textPalletNo.text = ""
+                                                binding.textDestination.text = ""
+                                                bottomSheetDialog?.dismiss()
                                             } else {
                                                 AssetUtils.showCommonBottomSheetErrorDialog(
                                                     context,
@@ -587,6 +595,7 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
                 binding.appLed.setImageResource(R.drawable.off_indicator)
                 binding.textPalletNo.text = ""
                 binding.textDestination.text = ""
+                bottomSheetDialog?.dismiss()
             }
         })
     }
@@ -671,14 +680,14 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
     private fun handleDisplayMessage(data: JsonObject) {
         try {
             if(!data.isJsonNull){
-                data.takeIf { it.has("tagDetails") }.let {
+                if (data.has("tagDetails")){
                     var palletName = ""
                     var WOType = ""
                     var palletTagID = ""
                     var WONo = ""
                     var destination = ""
                     var matchedPallet : OrderDetails? = null
-                    var currentBinDestination = "101"
+                    var currentBinDestination = ""
                     var currentDestinationTag = ""
                     val destinationList = mutableMapOf<String, Int>()
                     binding.appLed.setImageResource(R.drawable.on_indicator)
@@ -693,8 +702,14 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
                         if(orderDetailsList.isNotEmpty()){
                             when(tagType) {
                                 "02" -> {
-                                    matchedPallet =
-                                        orderDetailsList.find { it.palletTagID == tagID }
+                                    for (order in orderDetailsList) {
+                                        Log.e("CheckOrderList", "Comparing: ${order.palletTagID?.trim()} with $tagID")
+                                        if (order.palletTagID?.trim()  == tagID.trim()) {
+                                            matchedPallet = order
+                                            Log.e("Matched", "Match found: ${matchedPallet!!.palletTagID}")
+                                            break
+                                        }
+                                    }
                                     matchedPallet?.let {
                                         palletName = it.palletNumber.toString()
                                         WOType = it.workorderType.toString()
@@ -730,6 +745,7 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
                                 }
                                 "03" -> {
                                     destinationList[tagID] = rssi
+                                    Log.e("Dest", destinationList.toString())
                                 }
                             }
                         }
@@ -738,8 +754,14 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
                     currentDestinationTag = if (destinationList.isNotEmpty()) {
                         destinationList.minByOrNull { it.value }?.key.orEmpty()
                     } else {
-                        "__"
+                        ""
                     }
+                    currentBinDestination = ((if (db.getAssetNameByAssetTagId(currentDestinationTag) != "Unknown") {
+                        db.getAssetNameByAssetTagId(currentDestinationTag)
+                    } else {
+                        "__"
+                    }).toString())
+
                     Log.e("matchedPallt", matchedPallet?.palletTagID.toString())
                     if(matchedPallet!= null){
                         Handler(Looper.getMainLooper()).post {

@@ -1,6 +1,7 @@
 package com.psl.tabdisplay.models
 
 import com.google.gson.JsonObject
+import com.psl.tabdisplay.database.AssetMaster
 import java.util.Objects
 
 class dataModels {
@@ -35,5 +36,8 @@ class dataModels {
         val CategoryID : Int,
         val TagType : String,
         val TransDatetime : String
+    )
+    data class Assets(
+        val assestsList : List<AssetMaster>
     )
 }

@@ -13,6 +13,8 @@ import com.psl.tabdisplay.APIHelpers.APIConstants
 import com.psl.tabdisplay.APIHelpers.APIResponse
 import com.psl.tabdisplay.APIHelpers.APIService
 import com.psl.tabdisplay.APIHelpers.LoginRequest
+import com.psl.tabdisplay.database.AssetMaster
+import com.psl.tabdisplay.database.DBHandler
 import com.psl.tabdisplay.models.dataModels
 import com.psl.tabdisplay.databinding.ActivityLoginBinding
 import com.psl.tabdisplay.helper.AssetUtils
@@ -20,8 +22,11 @@ import com.psl.tabdisplay.helper.AssetUtils.hideProgressDialog
 import com.psl.tabdisplay.helper.AssetUtils.showProgress
 import com.psl.tabdisplay.helper.ConnectionManager
 import com.psl.tabdisplay.helper.SharedPreferencesManager
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
+import org.json.JSONObject
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -38,11 +43,13 @@ class LoginActivity : AppCompatActivity(), ConnectionManager.ConnectionListener 
     private lateinit var cd : ConnectionManager
     private lateinit var sharedPreferencesManager: SharedPreferencesManager
     private var deviceId : String= ""
+    private lateinit var db : DBHandler
     @SuppressLint("HardwareIds")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = DataBindingUtil.setContentView(this, R.layout.activity_login)
 
+        db = DBHandler(context)
         cd = ConnectionManager(this, this)
         sharedPreferencesManager = SharedPreferencesManager(context)
 
@@ -68,32 +75,56 @@ class LoginActivity : AppCompatActivity(), ConnectionManager.ConnectionListener 
             binding.edtUserName.setText("")
             binding.edtPassword.setText("")
         }
-
+        binding.imgSync.setOnClickListener{
+            sync()
+        }
         binding.btnLogin.setOnClickListener{
-            if(sharedPreferencesManager.getIsHostConfig()){
-                val user =binding.edtUserName.text.toString().trim()
-                val password =binding.edtPassword.text.toString().trim()
-                if(binding.chkRemember.isChecked){
-                    sharedPreferencesManager.setIsLoginSaved(true)
-                    sharedPreferencesManager.setSavedUser(user)
-                    sharedPreferencesManager.setSavedPassword(password)
-                } else{
-                    sharedPreferencesManager.setIsLoginSaved(false)
-                    sharedPreferencesManager.setSavedUser("")
-                    sharedPreferencesManager.setSavedPassword("")
-                }
-                if (user.equals("") || password.equals("")) {
-                    AssetUtils.showCommonBottomSheetErrorDialog(context, resources.getString(R.string.login_data_validation))
-                } else{
-                    if(cd.isConnectedToNetwork()){
-                        userLogin("Please wait...\nUser login is in progress", user, password, deviceId)
-                    } else{
-                        AssetUtils.showCommonBottomSheetErrorDialog(context, resources.getString(R.string.internet_error))
+            if(db.getAssetMasterCount()>0) {
+                if (sharedPreferencesManager.getIsHostConfig()) {
+                    val user = binding.edtUserName.text.toString().trim()
+                    val password = binding.edtPassword.text.toString().trim()
+                    if (binding.chkRemember.isChecked) {
+                        sharedPreferencesManager.setIsLoginSaved(true)
+                        sharedPreferencesManager.setSavedUser(user)
+                        sharedPreferencesManager.setSavedPassword(password)
+                    } else {
+                        sharedPreferencesManager.setIsLoginSaved(false)
+                        sharedPreferencesManager.setSavedUser("")
+                        sharedPreferencesManager.setSavedPassword("")
                     }
+                    if (user.equals("") || password.equals("")) {
+                        AssetUtils.showCommonBottomSheetErrorDialog(
+                            context,
+                            resources.getString(R.string.login_data_validation)
+                        )
+                    } else {
+                        if (cd.isConnectedToNetwork()) {
+                            userLogin(
+                                "Please wait...\nUser login is in progress",
+                                user,
+                                password,
+                                deviceId
+                            )
+                        } else {
+                            AssetUtils.showCommonBottomSheetErrorDialog(
+                                context,
+                                resources.getString(R.string.internet_error)
+                            )
+                        }
 
+                    }
+                } else {
+                    AssetUtils.showCommonBottomSheetErrorDialog(
+                        context,
+                        resources.getString(R.string.url_not_config)
+                    )
                 }
-            } else {
-                AssetUtils.showCommonBottomSheetErrorDialog(context, resources.getString(R.string.url_not_config))
+            }
+            else{
+                AssetUtils.showCommonBottomSheetErrorDialog(
+                    context,
+                    "Please sync all assests"
+                )
             }
         }
         binding.imgSetting.setOnClickListener{
@@ -219,8 +250,122 @@ class LoginActivity : AppCompatActivity(), ConnectionManager.ConnectionListener 
 
             })
         } catch (e: Exception) {
+            hideProgressDialog()
             Log.e("LOGIN_ERROR", "Unexpected Error: ${e.localizedMessage}")
-            AssetUtils.showCommonBottomSheetErrorDialog(context, "Something Went Wrong.")
+            AssetUtils.showCommonBottomSheetErrorDialog(context, e.localizedMessage)
+        }
+    }
+    private fun sync(){
+        try {
+            showProgress(context, "Please wait while syncing")
+            val jsonObject = JSONObject()
+            jsonObject.put(APIConstants.K_DEVICE_ID, sharedPreferencesManager.getDeviceId())
+
+            val requestBody =
+                jsonObject.toString().toRequestBody("application/json".toMediaTypeOrNull())
+
+            val loggingInterceptor = HttpLoggingInterceptor().apply {
+                level = HttpLoggingInterceptor.Level.BODY
+            }
+
+            val okHttpClient = OkHttpClient.Builder()
+                .addInterceptor(loggingInterceptor)
+                .connectTimeout(APIConstants.API_TIMEOUT.toLong(), TimeUnit.SECONDS)
+                .readTimeout(APIConstants.API_TIMEOUT.toLong(), TimeUnit.SECONDS)
+                .writeTimeout(APIConstants.API_TIMEOUT.toLong(), TimeUnit.SECONDS)
+                .build()
+
+            val retrofit: Retrofit = Retrofit.Builder()
+                .baseUrl(sharedPreferencesManager.getHostUrl().toString())
+                .addConverterFactory(GsonConverterFactory.create())
+                .client(okHttpClient)
+                .build()
+
+            Log.e("URL", "Base URL: $sharedPreferencesManager.getHostUrl().toString()")
+            val apiService: APIService = retrofit.create(APIService::class.java)
+            apiService.syncAssets(requestBody)
+                .enqueue(object : Callback<APIResponse<dataModels.Assets>> {
+                    override fun onResponse(
+                        call: Call<APIResponse<dataModels.Assets>>,
+                        response: Response<APIResponse<dataModels.Assets>>
+                    ) {
+                        try {
+                            hideProgressDialog()
+                            if (response.isSuccessful){
+                                val result = response.body()
+                                Log.e("API_RESPONSE", "Success Body: ${Gson().toJson(result)}")
+                                if (result != null) {
+                                    if(result.status){
+                                        val assetsList : MutableList<AssetMaster> = mutableListOf()
+                                        result.data?.assestsList?.forEach { a ->
+                                            val t = AssetMaster(
+                                            assetID = a.assetID,
+                                            aTypeID = a.aTypeID,
+                                            aName = a.aName,
+                                            aTagID = a.aTagID
+                                            )
+                                            assetsList.add(t)
+
+                                        }
+                                        Log.e("Assets", assetsList.toString())
+                                        db.deleteAssetMaster()
+                                        db.insertAssets(assetsList)
+                                    }
+                                    else{
+                                        AssetUtils.showCommonBottomSheetErrorDialog(context, result.message)
+                                    }
+                                }
+                            }
+                            else{
+                                Log.e("HTTP_ERROR", "HTTP Error Code: ${response.code()} - ${response.errorBody()?.string()}")
+                                AssetUtils.showCommonBottomSheetErrorDialog(context, "Response Error(${response.code()}): ${response.errorBody()?.string()}")
+                            }
+                        } catch (e: Exception) {
+                            Log.e("RESPONSE_ERROR", "Error handling response: ${e.localizedMessage}")
+                            AssetUtils.showCommonBottomSheetErrorDialog(context, "An error occurred while processing the response.")
+                        }
+                    }
+
+                    override fun onFailure(call: Call<APIResponse<dataModels.Assets>>, t: Throwable) {
+                        hideProgressDialog()
+                        when (t) {
+                            is SocketTimeoutException -> {
+                                AssetUtils.showCommonBottomSheetErrorDialog(
+                                    context,
+                                    resources.getString(R.string.TimeOutError)
+                                )
+                            }
+
+                            is UnknownHostException -> {
+                                AssetUtils.showCommonBottomSheetErrorDialog(
+                                    context,
+                                    resources.getString(R.string.internet_error)
+                                )
+                            }
+
+                            is ConnectException -> {
+                                AssetUtils.showCommonBottomSheetErrorDialog(
+                                    context,
+                                    resources.getString(R.string.communication_error)
+                                )
+                            }
+
+                            else -> {
+                                Log.e("NETWORK_ERROR", "Network Failure: ${t.localizedMessage}")
+                                AssetUtils.showCommonBottomSheetErrorDialog(
+                                    context,
+                                    "Network Failure: ${t.localizedMessage}."
+                                )
+                            }
+
+                        }
+                    }
+                })
+        }
+        catch (ex : Exception){
+            hideProgressDialog()
+            Log.e("LOGIN_ERROR", "Unexpected Error: ${ex.localizedMessage}")
+            AssetUtils.showCommonBottomSheetErrorDialog(context, ex.localizedMessage)
         }
     }
     override fun onNetworkChanged(isConnected: Boolean) {

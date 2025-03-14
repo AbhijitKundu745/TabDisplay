@@ -3,6 +3,7 @@ package com.psl.tabdisplay.APIHelpers
 class APIConstants {
     companion object {
         const val M_USER_LOGIN: String = "WMS/TabLogin"
+        const val M_SYNC: String = "WMS/Sync"
         const val M_LOG_OUT: String = "WMS/UserLogOut?userID="
         const val M_GET_WORK_ORDER_DETAILS: String = "WMS/GetWorkorderListItemsV1"
         const val M_POST_INVENTORY: String = "WMS/InsertTransactionDetails"
