@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">TabDisplay</string>
+    <string name="footer">Powered by : Perceptron Software Labs Pvt Ltd</string>
+    <string name="login_data_validation">Please enter valid username/password</string>
+
+    <string name="enter_config_url">Enter Valid URL</string>
+    <string name="url_not_config">Please Config SERVER URL from setting option</string>
+    <string name="url_validation">SERVER URL Validated successfully\nDo you want to set up ?</string>
+    <string name="url_config_success">SERVER URL Configured successfully</string>
+    <string name="url_config_error">Error in SERVER URL validation</string>
+
+    <string name="something_went_wrong_error">Something went wrong. Contact ADMIN.</string>
+    <string name="communication_error">NETWORK_ERROR: Failed to connect to the server.</string>
+    <string name="internet_error">NETWORK_ERROR: No internet connection.</string>
+    <string name="TimeOutError">NETWORK_ERROR: Request Timeout! Server took too long to respond.</string>
+</resources>

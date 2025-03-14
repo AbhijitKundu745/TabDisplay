@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
+    <data>
+
+    </data>
+
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@drawable/gradient_color"
+        tools:context=".LoginActivity">
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="0.15"
+            android:scaleType="fitXY"
+            android:src="@drawable/banner"/>
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="0.2"/>
+            <androidx.appcompat.widget.LinearLayoutCompat
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:padding="10dp"
+                android:layout_margin="10dp"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:orientation="vertical">
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:layout_width="match_parent"
+                    android:orientation="horizontal"
+                    android:layout_gravity="center"
+                    android:gravity="center"
+                    android:layout_height="0dp"
+                    android:layout_weight="1">
+                    <androidx.appcompat.widget.AppCompatImageView
+                        android:id="@+id/imgDummy"
+                        android:layout_width="0dp"
+                        android:layout_weight="2"
+                        android:layout_marginLeft="10dp"
+                        android:layout_height="match_parent" />
+                    <androidx.appcompat.widget.AppCompatImageView
+                        android:id="@+id/imgUser"
+                        android:layout_weight="1"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:src="@drawable/usericon"/>
+                    <androidx.appcompat.widget.AppCompatImageView
+                        android:id="@+id/imgDummy1"
+                        android:layout_width="0dp"
+                        android:layout_weight="1.5"
+                        android:layout_marginLeft="10dp"
+                        android:layout_height="match_parent" />
+                    <androidx.appcompat.widget.AppCompatImageView
+                        android:id="@+id/imgSetting"
+                        android:layout_width="0dp"
+                        android:layout_weight="0.5"
+                        android:layout_marginRight="10dp"
+                        android:layout_height="match_parent"
+                        android:src="@drawable/setting"/>
+                </androidx.appcompat.widget.LinearLayoutCompat>
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="0.5"
+                    android:layout_marginBottom="5dp"
+                    android:layout_marginTop="20dp"
+                    android:background="@drawable/edittext_white_background">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edtUserName"
+                        android:layout_width="match_parent"
+                        android:background="@drawable/edittext_white_background"
+                        android:drawableRight="@drawable/ic_user"
+                        android:layout_height="match_parent"
+                        android:inputType="text"
+                        android:maxLength="50"
+                        android:letterSpacing="0.1"
+                        android:textSize="20sp"
+                        android:textColor="@color/orange1"
+                        android:hint="Username"
+                        android:paddingLeft="5dp"
+                        android:drawableTint="@color/orange1"/>
+
+                </com.google.android.material.textfield.TextInputLayout>
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="0.5"
+                    android:layout_marginTop="5dp"
+                    app:passwordToggleEnabled="true"
+                    app:passwordToggleTint="@color/orange1"
+                    android:background="@drawable/edittext_white_background"
+                    android:drawableRight="@android:drawable/ic_menu_info_details">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edtPassword"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/edittext_white_background"
+                        android:hint="Password"
+                        android:inputType="textPassword"
+                        android:letterSpacing="0.2"
+                        android:maxLength="50"
+                        android:paddingLeft="5dp"
+                        android:textColor="@color/orange1"
+                        android:textSize="20sp" />
+
+                </com.google.android.material.textfield.TextInputLayout>
+
+
+                <androidx.appcompat.widget.AppCompatCheckBox
+                    android:id="@+id/chkRemember"
+                    android:layout_marginTop="10dp"
+                    android:layout_width="match_parent"
+                    android:text="Remember Me"
+                    android:layout_height="0dp"
+                    android:layout_weight="0.1"
+                    android:textSize="20sp"/>
+
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="0.2"
+                    android:layout_marginTop="10dp"
+                    android:orientation="horizontal">
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnLogin"
+                        android:layout_width="0dp"
+                        android:layout_weight="1.5"
+                        android:layout_marginEnd="10dp"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/round_button_green"
+                        android:text="Login"
+                        android:textSize="20sp"
+                        android:textColor="@color/white"/>
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnClear"
+                        android:layout_width="0dp"
+                        android:layout_weight="1.5"
+                        android:layout_height="match_parent"
+                        android:layout_marginLeft="5dp"
+                        android:background="@drawable/round_button_red"
+                        android:text="Clear"
+                        android:textSize="20sp"
+                        android:textColor="@color/white"/>
+                </androidx.appcompat.widget.LinearLayoutCompat>
+
+                <TextView
+                    android:id="@+id/textDeviceId"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="10dp"
+                    android:text="Device ID: "
+                    android:textColor="@color/white"
+                    android:textSize="15sp"/>
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="0.5"/>
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="10dp"
+                    android:text="Version: 1.0.0"
+                    android:textColor="@color/white"
+                    android:textSize="14sp"
+                    android:gravity="center"/>
+            </androidx.appcompat.widget.LinearLayoutCompat>
+
+    </androidx.appcompat.widget.LinearLayoutCompat>
+
+</layout>
