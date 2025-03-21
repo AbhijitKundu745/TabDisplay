@@ -31,12 +31,12 @@
                 android:layout_gravity="center"
                 android:gravity="center"
                 android:orientation="vertical">
-                <androidx.appcompat.widget.AppCompatImageView
-                    android:id="@+id/imgSync"
-                    android:layout_width="match_parent"
-                    android:layout_weight="0.3"
-                    android:layout_height="0dp"
-                    android:src="@drawable/sync"/>
+<!--                <androidx.appcompat.widget.AppCompatImageView-->
+<!--                    android:id="@+id/imgSync"-->
+<!--                    android:layout_width="match_parent"-->
+<!--                    android:layout_weight="0.3"-->
+<!--                    android:layout_height="0dp"-->
+<!--                    android:src="@drawable/sync"/>-->
                 <androidx.appcompat.widget.LinearLayoutCompat
                     android:layout_width="match_parent"
                     android:orientation="horizontal"

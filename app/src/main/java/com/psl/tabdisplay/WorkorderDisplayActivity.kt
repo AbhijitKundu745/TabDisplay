@@ -11,8 +11,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.Window
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import androidx.databinding.DataBindingUtil
 import androidx.recyclerview.widget.GridLayoutManager
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -21,6 +24,7 @@ import com.google.gson.JsonParser
 import com.psl.seuicfixedreader.MQTT.MQTTConnection
 import com.psl.seuicfixedreader.MQTT.MqttConnectionCallBack
 import com.psl.seuicfixedreader.MQTT.MqttPublisher
+import com.psl.seuicfixedreader.MQTT.MqttResponseCallback
 import com.psl.seuicfixedreader.MQTT.MqttSubscriber
 import com.psl.tabdisplay.APIHelpers.APIConstants
 import com.psl.tabdisplay.APIHelpers.APIService
@@ -32,8 +36,12 @@ import com.psl.tabdisplay.helper.ConnectionManager
 import com.psl.tabdisplay.helper.SharedPreferencesManager
 import com.psl.tabdisplay.models.OrderDetails
 import com.psl.tabdisplay.models.dataModels
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -86,6 +94,15 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
     private lateinit var customConfirmationDialog : Dialog
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var db : DBHandler
+    private var timerDateTime : String = "";
+    private var statusDateTime : String = "";
+    private var binDateTime : String = "";
+    private var Is_Popup_Showing : Boolean = false
+    private var Is_App_Running : Boolean = false
+    private var Is_Bin_Running : Boolean = false
+    private var job: Job? = null
+    private var currentBinDestination = "__"
+    private var isPostingInventory : Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -111,41 +128,29 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
         binding.textDestination.text = ""
         binding.textPalletNo.text = ""
         startWorkorderFetchingHandler()
+        Log.e("Lifecycle", "onCreate() called")
+        //startTimerCheck()
     }
 
-    @SuppressLint("UseCompatLoadingForDrawables", "SetTextI18n")
+    @SuppressLint("UseCompatLoadingForDrawables", "SetTextI18n", "SuspiciousIndentation")
     private fun setOnOffButtonClickListener() {
-        binding.btnOnOff.text = "ON"
-        binding.btnOnOff.background = getDrawable(R.drawable.custom_on_button)
+        binding.btnOnOff.thumbDrawable = ContextCompat.getDrawable(this, R.drawable.custom_switch_thumb)
+            binding.btnOnOff.setOnCheckedChangeListener  { _, isChecked ->
+                if(mqttConnection.isConnected()){
+                IS_ON = isChecked
 
-        binding.btnOnOff.setOnClickListener {
-            IS_ON = !IS_ON  // Toggle the state
+                val action = if (IS_ON) "ON" else "OFF"
+                startReader(action)
+                }
+                else{
+                    AssetUtils.showCommonBottomSheetErrorDialog(context, "Please wait, the server is not connected yet")
+                    binding.btnOnOff.isChecked = !isChecked
+                }
 
-            if (IS_ON) {
-                binding.btnOnOff.text = "ON"
-                binding.btnOnOff.background = getDrawable(R.drawable.custom_on_button)
-            } else {
-                binding.btnOnOff.text = "OFF"
-                binding.btnOnOff.background = getDrawable(R.drawable.custom_off_button)
-            }
-            val action = if (IS_ON) "OFF" else "ON"
-            //startReader(action)
         }
     }
 
     private fun initAdapter() {
-        if (orderDetailsList.isNotEmpty()) {
-            orderDetailsList.clear()
-        }
-
-        if (recOrderDetailsList.isNotEmpty()) {
-            recOrderDetailsList.clear()
-        }
-
-        if (disOrderDetailsList.isNotEmpty()) {
-            disOrderDetailsList.clear()
-        }
-
         binding.rvPallet.layoutManager = GridLayoutManager(context, 1)
         workOrderDetailsRecAdapter =
             WorkOrderDetailsAdapter(context, recOrderDetailsList, workOrderType)
@@ -155,6 +160,7 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
         workOrderDetailsDisAdapter =
             WorkOrderDetailsAdapter(context, disOrderDetailsList, workOrderType)
         binding.disPallet.adapter = workOrderDetailsDisAdapter
+
     }
 
     private fun startWorkorderFetchingHandler() {
@@ -171,13 +177,15 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
     }
 
     private fun stopHandler() {
-        workorderFetchingHandler.removeCallbacks(workorderFetchingRunnable)
-        handler.removeCallbacks(dismissPopupRunnable)
+        CoroutineScope(Dispatchers.IO).launch {
+            workorderFetchingHandler.removeCallbacks(workorderFetchingRunnable)
+            handler.removeCallbacks(dismissPopupRunnable)
+            job?.cancel()
+        }
     }
 
     @SuppressLint("SuspiciousIndentation")
     private fun GetWorkDetailsTask() {
-        CoroutineScope(Dispatchers.IO).launch {
             try {
                 val jsonObject = JSONObject()
                 jsonObject.put(APIConstants.K_DEVICE_ID, sharedPreferencesManager.getDeviceId())
@@ -302,7 +310,6 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
                 Log.e("LOGIN_ERROR", "Unexpected Error: ${ex.localizedMessage}")
                 AssetUtils.showCommonBottomSheetErrorDialog(context, "Something Went Wrong.")
             }
-        }
     }
 
     private fun parseWorkDetailsObjectAndDoAction(jsonObject: JsonObject) {
@@ -311,15 +318,9 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
             jsonObject.takeIf { it.has(APIConstants.K_DATA) }?.let {
                 val dataObject = it.getAsJsonObject(APIConstants.K_DATA)
                 Log.e("DataObject", dataObject.toString())
-                if (orderDetailsList.isNotEmpty()) {
-                    orderDetailsList.clear()
-                }
-                if (recOrderDetailsList.isNotEmpty()) {
-                    recOrderDetailsList.clear()
-                }
-                if (disOrderDetailsList.isNotEmpty()) {
-                    disOrderDetailsList.clear()
-                }
+                orderDetailsList.clear()
+                recOrderDetailsList.clear()
+                disOrderDetailsList.clear()
                 dataObject.takeIf { it.has(APIConstants.K_POLLING_TIMER) }?.let {
                     POLLING_TIMER = dataObject.get(APIConstants.K_POLLING_TIMER)
                         ?.takeIf { !it.isJsonNull }?.asInt ?: 5000
@@ -389,12 +390,22 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
                             "L0", "L1" -> disOrderDetailsList.add(orderDetails)
                         }
                     }
-                    runOnUiThread {
-                        workOrderDetailsRecAdapter?.notifyDataSetChanged()
-                        workOrderDetailsDisAdapter?.notifyDataSetChanged()
+
+
+                        Log.e("RecyclerViewDebug", "recOrderDetailsList size: ${recOrderDetailsList.size}")
+                        Log.e("RecyclerViewDebug", "disOrderDetailsList size: ${disOrderDetailsList.size}")
+                    if(workOrderDetailsRecAdapter!=null){
+                        workOrderDetailsRecAdapter.notifyDataSetChanged()
+                    }
+                    if(workOrderDetailsDisAdapter!=null){
+                        workOrderDetailsDisAdapter.notifyDataSetChanged()
+                    }
+
                         binding.recCount.text = recOrderDetailsList.size.toString()
                         binding.disCount.text = disOrderDetailsList.size.toString()
-                    }
+
+                    workOrderDetailsRecAdapter.notifyDataSetChanged()
+                    workOrderDetailsDisAdapter.notifyDataSetChanged()
                 }
 
             }
@@ -412,8 +423,10 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
         destinationTag: String,
         workOrderNo: String
     ) {
-        CoroutineScope(Dispatchers.IO).launch {
             try {
+                if (isPostingInventory) return
+                isPostingInventory = true
+                workorderFetchingHandler.removeCallbacks(workorderFetchingRunnable)
                 val id = UUID.randomUUID().toString()
                 val deviceID = sharedPreferencesManager.getDeviceId().toString()
                 val dateTime = AssetUtils.getUTCSystemDateTimeInFormatt().toString()
@@ -476,16 +489,33 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
                                                 jsonObject.get(APIConstants.K_MESSAGE)?.asString
                                                     ?: ""
                                             if (status) {
+                                                orderDetailsList.removeAll { it.palletTagID == palletTag }
+                                                recOrderDetailsList.removeAll { it.palletTagID == palletTag }
+                                                disOrderDetailsList.removeAll { it.palletTagID == palletTag }
+
+                                                workOrderDetailsRecAdapter.notifyDataSetChanged()
+                                                workOrderDetailsDisAdapter.notifyDataSetChanged()
+
+                                                binding.recCount.text = recOrderDetailsList.size.toString()
+                                                binding.disCount.text = disOrderDetailsList.size.toString()
                                                 AssetUtils.showCommonBottomSheetSuccessDialog(
                                                     context,
                                                     message
                                                 )
-                                                workOrderDetailsRecAdapter.notifyDataSetChanged()
-                                                workOrderDetailsDisAdapter.notifyDataSetChanged()
-                                                binding.textPalletNo.text = ""
-                                                binding.textDestination.text = ""
-                                                bottomSheetDialog?.dismiss()
+                                                    binding.textPalletNo.text = ""
+                                                    binding.textDestination.text = ""
+
+                                                    bottomSheetDialog?.dismiss()
+                                                    timerDateTime = ""
+
+                                                Handler(Looper.getMainLooper()).postDelayed({
+                                                    isPostingInventory = false
+                                                    startWorkorderFetchingHandler()  // Resume polling
+                                                }, 2000)
+
                                             } else {
+                                                isPostingInventory = false
+                                                startWorkorderFetchingHandler()
                                                 AssetUtils.showCommonBottomSheetErrorDialog(
                                                     context,
                                                     message
@@ -493,6 +523,8 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
                                             }
                                         }
                                 } else {
+                                    isPostingInventory = false
+                                    startWorkorderFetchingHandler()
                                     Log.e(
                                         "HTTP_ERROR",
                                         "HTTP Error Code: ${response.code()} - ${
@@ -507,6 +539,8 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
                                     )
                                 }
                             } catch (e: Exception) {
+                                isPostingInventory = false
+                                startWorkorderFetchingHandler()
                                 Log.e(
                                     "RESPONSE_ERROR",
                                     "Error handling response: ${e.localizedMessage}"
@@ -550,15 +584,18 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
                                 }
 
                             }
+                            isPostingInventory = false
+                            startWorkorderFetchingHandler()
                         }
 
                     })
 
             } catch (ex: Exception) {
+                isPostingInventory = false
+                startWorkorderFetchingHandler()
                 Log.e("LOGIN_ERROR", "Unexpected Error: ${ex.localizedMessage}")
                 AssetUtils.showCommonBottomSheetErrorDialog(context, "Something Went Wrong.")
             }
-        }
     }
 
     override fun onNetworkChanged(isConnected: Boolean) {
@@ -583,7 +620,7 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
             Log.e("MQTT", "Already connected, skipping reconnection.")
             return
         }
-        mqttConnection.connect("http://broker.emqx.io/WMS31/", "Tab", object :
+        mqttConnection.connect(sharedPreferencesManager.getHostUrl().toString(), "Tab", object :
             MqttConnectionCallBack {
             override fun onSuccess() {
                 subscribe()
@@ -609,7 +646,7 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
                     val subscribeTopic = "$commandTopic$deviceId/#"
                     Log.e("Topic", subscribeTopic)
                     if (subscribeTopic.isNotEmpty()) {
-                        subscribeTopicAsync(subscribeTopic)
+                            subscribeTopicAsync(subscribeTopic)
                     } else {
                         Log.e("MQTT", "Subscribe topic is empty, skipping subscription.")
                     }
@@ -643,18 +680,20 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
                         Log.e("Message Arrived", message.toString())
                         handler.removeCallbacks(dismissPopupRunnable)
                         handler.postDelayed(dismissPopupRunnable, 15000) // Restart 15s timer
-                        try {
-                            val msgStr = message.toString()
-                            val j = JsonParser.parseString(msgStr).asJsonObject
-                            val messageType = j.get("messageType")?.asString ?: "Unknown"
-                            val data = j.getAsJsonObject("data")
-                            if (messageType.equals("DataLogger")) {
-                                handleDisplayMessage(data)
-                            } else if (messageType.equals("DataConfig")) {
-                                handleConfigMessage(data)
+                        CoroutineScope(Dispatchers.IO).launch {
+                            try {
+                                val msgStr = message.toString()
+                                val j = JsonParser.parseString(msgStr).asJsonObject
+                                val messageType = j.get("messageType")?.asString ?: "Unknown"
+                                val data = j.getAsJsonObject("data")
+                                if (messageType.equals("DataLogger")) {
+                                        handleDisplayMessage(data)
+                                } else if (messageType.equals("DataConfig")) {
+                                    handleConfigMessage(data)
+                                }
+                            } catch (ex: Exception) {
+                                Log.e("Receiving Error", ex.message.toString())
                             }
-                        } catch (ex: Exception) {
-                            Log.e("Receiving Error", ex.message.toString())
                         }
                     }
 
@@ -677,149 +716,197 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
         }
     }
 
-    private fun handleDisplayMessage(data: JsonObject) {
-        try {
-            if(!data.isJsonNull){
-                if (data.has("tagDetails")){
-                    var palletName = ""
-                    var WOType = ""
-                    var palletTagID = ""
-                    var WONo = ""
-                    var destination = ""
-                    var matchedPallet : OrderDetails? = null
-                    var currentBinDestination = ""
-                    var currentDestinationTag = ""
-                    val destinationList = mutableMapOf<String, Int>()
-                    binding.appLed.setImageResource(R.drawable.on_indicator)
-                    val jsonArray = data.getAsJsonArray("tagDetails")
-                    for(j in jsonArray){
-                        val tagObject = j.asJsonObject
-                        val tagID = tagObject.get("tagID")?.asString.orEmpty()
-                        val rssi = tagObject.get("rssi")?.asInt ?: 0
-                        val antennaID = tagObject.get("antennaID")?.asString.orEmpty()
-                        val tagType = tagID.substring(2,4).toString()
-                        Log.e("TagDetails", "TagID: $tagID, RSSI: $rssi, AntennaID: $antennaID")
-                        if(orderDetailsList.isNotEmpty()){
-                            when(tagType) {
-                                "02" -> {
-                                    for (order in orderDetailsList) {
-                                        Log.e("CheckOrderList", "Comparing: ${order.palletTagID?.trim()} with $tagID")
-                                        if (order.palletTagID?.trim()  == tagID.trim()) {
-                                            matchedPallet = order
-                                            Log.e("Matched", "Match found: ${matchedPallet!!.palletTagID}")
-                                            break
-                                        }
-                                    }
-                                    matchedPallet?.let {
-                                        palletName = it.palletNumber.toString()
-                                        WOType = it.workorderType.toString()
-                                        palletTagID = it.palletTagID.toString()
-                                        WONo = it.workorderNo.toString()
+    private suspend fun handleDisplayMessage(data: JsonObject) {
+        return withContext(Dispatchers.Main) {
+            try {
+                statusDateTime = AssetUtils.getSystemDateTime()
+                Is_App_Running = true
+                binding.appLed.setImageResource(R.drawable.on_indicator)
+                if (!data.isJsonNull) {
+                    if (data.has("tagDetails")) {
+                        var palletName = ""
+                        var WOType = ""
+                        var palletTagID = ""
+                        var WONo = ""
+                        var destination = ""
+                        var matchedPallet: OrderDetails? = null
+                        var currentDestinationTag = ""
+                        val destinationList = mutableMapOf<String, MutableMap<String, Int>>()
 
+                        val jsonArray = data.getAsJsonArray("tagDetails")
+                        if (jsonArray.size() > 0) {
+                            for (j in jsonArray) {
+                                val tagObject = j.asJsonObject
+                                val tagID = tagObject.get("tagID")?.asString.orEmpty()
+                                val tagName = tagObject.get("tagName")?.asString.orEmpty()
+                                val rssi = tagObject.get("rssi")?.asInt ?: 0
+                                val antennaID = tagObject.get("antennaID")?.asString.orEmpty()
+                                Log.e("ANTS", antennaID).toString()
+                                resetLED()
+                                when (antennaID.trim()) {
 
-                                        binding.textPalletNo.text = palletName
-
-                                        destination = when {
-                                            workOrderType == "U0" && it.loadingAreaName?.isNotEmpty() == true -> it.loadingAreaName!!
-                                            workOrderType == "U1" && it.binLocation?.isNotEmpty() == true -> it.binLocation!!
-                                            workOrderType == "L0" && it.tempStorage?.isNotEmpty() == true -> it.tempStorage!!
-                                            workOrderType == "L1" && it.loadingAreaName?.isNotEmpty() == true -> it.loadingAreaName!!
-                                            workOrderType == "I0" && it.binLocation?.isNotEmpty() == true -> it.binLocation!!
-                                            else -> ""
-                                        }
-                                        if (destination.isNotEmpty()) {
-                                            val currentDestinations = binding.textDestination.text.toString()
-                                                .split(", ")
-                                                .filter { it.isNotEmpty() }
-                                                .toMutableSet() // Convert to a set to prevent duplicates
-
-                                            if (destination.isNotEmpty() && !currentDestinations.contains(destination)) {
-                                                currentDestinations.add(destination)
+                                    "1" -> binding.ledAnt1.setImageResource(R.drawable.on_indicator)
+                                    "2" -> binding.ledAnt2.setImageResource(R.drawable.on_indicator)
+                                    "3" -> binding.ledAnt3.setImageResource(R.drawable.on_indicator)
+                                    "4" -> binding.ledAnt4.setImageResource(R.drawable.on_indicator)
+                                    "5" -> binding.ledAnt5.setImageResource(R.drawable.on_indicator)
+                                    "6" -> binding.ledAnt6.setImageResource(R.drawable.on_indicator)
+                                    "7" -> binding.ledAnt7.setImageResource(R.drawable.on_indicator)
+                                    "8" -> binding.ledAnt8.setImageResource(R.drawable.on_indicator)
+                                    else -> Log.e("Antenna", "Unknown Antenna ID: $antennaID")
+                                }
+                                val tagType = tagID.substring(2, 4).toString()
+                                if (orderDetailsList.isNotEmpty()) {
+                                    when (tagType) {
+                                        "02" -> {
+                                            for (order in orderDetailsList) {
+                                                Log.e(
+                                                    "CheckOrderList",
+                                                    "Comparing: ${order.palletTagID?.trim()} with $tagID"
+                                                )
+                                                if (order.palletTagID?.trim() == tagID.trim()) {
+                                                    matchedPallet = order
+                                                    Log.e(
+                                                        "Matched",
+                                                        "Match found: ${matchedPallet!!.palletTagID}"
+                                                    )
+                                                    break
+                                                }
                                             }
+                                            matchedPallet?.let {
+//                                        Is_Popup_Showing = true
+//                                        timerDateTime = AssetUtils.getUTCSystemDateTimeInFormatt()
+                                                palletName = it.palletNumber.toString()
+                                                WOType = it.workorderType.toString()
+                                                palletTagID = it.palletTagID.toString()
+                                                WONo = it.workorderNo.toString()
 
-                                            binding.textDestination.text = currentDestinations.joinToString(", ") // Reconstruct text
-                                            binding.textDestination.isSelected = true
+
+                                                binding.textPalletNo.text = palletName
+
+                                                destination = when {
+                                                    WOType == "U0" && it.loadingAreaName?.isNotEmpty() == true -> it.loadingAreaName!!
+                                                    WOType == "U1" && it.binLocation?.isNotEmpty() == true -> it.binLocation!!
+                                                    WOType == "L0" && it.tempStorage?.isNotEmpty() == true -> it.tempStorage!!
+                                                    WOType == "L1" && it.loadingAreaName?.isNotEmpty() == true -> it.loadingAreaName!!
+                                                    WOType == "I0" && it.binLocation?.isNotEmpty() == true -> it.binLocation!!
+                                                    else -> ""
+                                                }
+
+                                                if (destination.isNotEmpty()) {
+                                                    val currentDestinations =
+                                                        binding.textDestination.text.toString()
+                                                            .split(", ")
+                                                            .filter { it.isNotEmpty() }
+                                                            .toMutableSet() // Convert to a set to prevent duplicates
+
+                                                    if (destination.isNotEmpty() && !currentDestinations.contains(
+                                                            destination
+                                                        )
+                                                    ) {
+                                                        currentDestinations.add(destination)
+                                                    }
+
+                                                    binding.textDestination.text =
+                                                        currentDestinations.joinToString(", ") // Reconstruct text
+                                                    binding.textDestination.isSelected = true
+                                                }
+
+                                            }
                                         }
 
+                                        "03" -> {
+                                            val tagInfo =
+                                                destinationList.getOrPut(tagID) { mutableMapOf() }
+                                            tagInfo[tagName] = rssi
+                                            Log.e("Dest", destinationList.toString())
+                                        }
+                                        "04" -> {
+                                            val tagInfo =
+                                                destinationList.getOrPut(tagID) { mutableMapOf() }
+                                            tagInfo[tagName] = rssi
+                                        }
                                     }
                                 }
-                                "03" -> {
-                                    destinationList[tagID] = rssi
-                                    Log.e("Dest", destinationList.toString())
-                                }
+
                             }
                         }
 
-                    }
-                    currentDestinationTag = if (destinationList.isNotEmpty()) {
-                        destinationList.minByOrNull { it.value }?.key.orEmpty()
-                    } else {
-                        ""
-                    }
-                    currentBinDestination = ((if (db.getAssetNameByAssetTagId(currentDestinationTag) != "Unknown") {
-                        db.getAssetNameByAssetTagId(currentDestinationTag)
-                    } else {
-                        "__"
-                    }).toString())
 
-                    Log.e("matchedPallt", matchedPallet?.palletTagID.toString())
-                    if(matchedPallet!= null){
-                        Handler(Looper.getMainLooper()).post {
-                            showPopup(
-                                palletName,
-                                WOType,
-                                destination,
-                                currentBinDestination,
-                                palletTagID,
-                                currentDestinationTag,
-                                WONo
-                            )
+                        if (destinationList.isNotEmpty()) {
+                            val minTagData = destinationList.minByOrNull {
+                                it.value.values.minOrNull() ?: Int.MAX_VALUE
+                            }
+                            currentDestinationTag = minTagData?.key.orEmpty()
+                            currentBinDestination =
+                                minTagData?.value?.minByOrNull { it.value }?.key.orEmpty()
+                            Is_Bin_Running = true
+                            binDateTime = AssetUtils.getSystemDateTime()
                         }
-                    } else {
-                        binding.textPalletNo.text = ""
-                        binding.textDestination.text = ""
-                        bottomSheetDialog?.dismiss()
-                    }
+                        Log.e(
+                            "Current Destination",
+                            "TagID: $currentDestinationTag, TagName: $currentBinDestination"
+                        )
 
+                        Log.e("matchedPallt", matchedPallet?.palletTagID.toString())
+                        if (matchedPallet != null) {
+                            Is_Popup_Showing = true
+                            timerDateTime = AssetUtils.getSystemDateTime()
+                            Log.e("SETTime", timerDateTime)
+                                showPopup(
+                                    palletName,
+                                    WOType,
+                                    destination,
+                                    currentBinDestination,
+                                    palletTagID,
+                                    currentDestinationTag,
+                                    WONo
+                                )
+                        }
+
+                    }
                 }
+            } catch (ex: JSONException) {
+                Log.e("JSONExc", ex.message.toString())
             }
-        }
-        catch (ex: JSONException){
-            Log.e("JSONExc", ex.message.toString())
         }
     }
 
-    private fun handleConfigMessage(data: JsonObject) {
-        try {
-            if (!data.isJsonNull) {
-                data.takeIf { it.has("ReaderStatus") }.let {
-                    val readerStat = data.get("ReaderStatus")?.asBoolean ?: false
-                    binding.appLed.setImageResource(
-                        if (readerStat) R.drawable.on_indicator else R.drawable.off_indicator
-                    )
-                }
-                data.takeIf { it.has("AntennaID") }.let {
-                    val ants = data.get("AntennaID")?.asString ?: ""
-                    resetLED()
-                    ants.split(",").forEach { antId ->
-                        when (antId.trim()) {
-                            "1" -> binding.ledAnt1.setImageResource(R.drawable.on_indicator)
-                            "2" -> binding.ledAnt2.setImageResource(R.drawable.on_indicator)
-                            "3" -> binding.ledAnt3.setImageResource(R.drawable.on_indicator)
-                            "4" -> binding.ledAnt4.setImageResource(R.drawable.on_indicator)
-                            "5" -> binding.ledAnt5.setImageResource(R.drawable.on_indicator)
-                            "6" -> binding.ledAnt6.setImageResource(R.drawable.on_indicator)
-                            "7" -> binding.ledAnt7.setImageResource(R.drawable.on_indicator)
-                            "8" -> binding.ledAnt8.setImageResource(R.drawable.on_indicator)
-                            else -> Log.e("Antenna", "Unknown Antenna ID: $antId")
+    private suspend fun handleConfigMessage(data: JsonObject) {
+        return withContext(Dispatchers.Main) {
+            try {
+                statusDateTime = AssetUtils.getSystemDateTime()
+                Is_App_Running = true
+                binding.appLed.setImageResource(R.drawable.on_indicator)
+                if (!data.isJsonNull) {
+                    binding.textPalletNo.text = ""
+                    binding.textDestination.text = ""
+                    bottomSheetDialog?.dismiss()
+                    data.takeIf { it.has("AntennaID") }.let {
+                        val ants = data.get("AntennaID")?.asString ?: ""
+                        resetLED()
+                        ants.split(",").forEach { antId ->
+                            when (antId.trim()) {
+                                "1" -> binding.ledAnt1.setImageResource(R.drawable.on_indicator)
+                                "2" -> binding.ledAnt2.setImageResource(R.drawable.on_indicator)
+                                "3" -> binding.ledAnt3.setImageResource(R.drawable.on_indicator)
+                                "4" -> binding.ledAnt4.setImageResource(R.drawable.on_indicator)
+                                "5" -> binding.ledAnt5.setImageResource(R.drawable.on_indicator)
+                                "6" -> binding.ledAnt6.setImageResource(R.drawable.on_indicator)
+                                "7" -> binding.ledAnt7.setImageResource(R.drawable.on_indicator)
+                                "8" -> binding.ledAnt8.setImageResource(R.drawable.on_indicator)
+                                else -> Log.e("Antenna", "Unknown Antenna ID: $antId")
+                            }
                         }
                     }
                 }
+            } catch (ex: JSONException) {
+                Log.e("JSONExc", ex.message.toString())
             }
-        } catch (ex: JSONException) {
-            Log.e("JSONExc", ex.message.toString())
         }
     }
+
+    @SuppressLint("MissingInflatedId")
     private fun showPopup(palletNumber: String, workOrderType: String, suggestedDestination: String, currentDestination: String, palletTag: String, destinationTag: String, workOrderNo: String) {
         // Inflate the custom popup layout
         val inflater = LayoutInflater.from(this)
@@ -830,19 +917,19 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
         val textSuggestDestination = popupView.findViewById<TextView>(R.id.textSuggestDestination)
         val textActualDestinationHeader = popupView.findViewById<TextView>(R.id.textActualDestinationHeader)
         val textActualDestination = popupView.findViewById<TextView>(R.id.textActualDestination)
+        val llActualDest = popupView.findViewById<LinearLayout>(R.id.llActualDest)
         val btnPost = popupView.findViewById<Button>(R.id.btnPost)
 
         // Set visibility and values based on workOrderType
         when (workOrderType) {
-            "U0", "L0", "L1" -> {
+            "U0", "L1" -> {
                 textPalletName.visibility = View.VISIBLE
                 textSuggestDestination.visibility = View.VISIBLE
-                textActualDestinationHeader.visibility = View.GONE
-                textActualDestination.visibility = View.GONE
+                llActualDest.visibility = View.GONE
                 textPalletName.text = palletNumber
                 textSuggestDestination.text = suggestedDestination
             }
-            "U1", "I0" -> {
+            "U1", "I0", "L0" -> {
                 textPalletName.visibility = View.VISIBLE
                 textSuggestDestination.visibility = View.VISIBLE
                 textActualDestination.visibility = View.VISIBLE
@@ -854,7 +941,7 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
                 textActualDestination.text = currentDestination
 
                 if (currentDestination != "__") {
-                    if (suggestedDestination != currentDestination) {
+                    //if (suggestedDestination != currentDestination) {
                         btnPost.setOnClickListener {
                             showCustomConfirmationDialogSpecial(
                                 "Do you want to put $palletNumber in $currentDestination?",
@@ -865,9 +952,9 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
                                 workOrderNo
                             )
                         }
-                    } else {
-                        btnPost.visibility = View.INVISIBLE
-                    }
+//                    } else {
+//                        btnPost.visibility = View.VISIBLE
+//                    }
                 } else {
                     btnPost.visibility = View.INVISIBLE
                 }
@@ -960,18 +1047,163 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
         ).forEach { it.setImageResource(R.drawable.off_indicator) }
     }
 
+    fun startTimerCheck() {
+            job?.cancel()
+            job = CoroutineScope(Dispatchers.Default).launch {
+                while (isActive) {
+                    if(timerDateTime.isNotEmpty()){
+                        val currentTime = AssetUtils.getSystemDateTime()
+                        val difference = AssetUtils.getTimeDifferenceInSeconds(timerDateTime, currentTime)
+                        if (difference >= 0) {
+                            if (difference > 5) {
+                                withContext(Dispatchers.Main) {
+                                    if (Is_Popup_Showing) {
+                                        Is_Popup_Showing = false
+                                        bottomSheetDialog?.dismiss()
+                                        binding.textPalletNo.text = ""
+                                        binding.textDestination.text = ""
+                                    }
+                                }
+                            }
+                        }
+                        else {
+                            Log.e("TimerCheck", "Invalid time difference calculation.")
+                        }
+                    }
+                    else{
+                        if (Is_Popup_Showing) {
+                            Is_Popup_Showing = false
+                            bottomSheetDialog?.dismiss()
+                            binding.textPalletNo.text = ""
+                            binding.textDestination.text = ""
+                        }
+                    }
+                    if(statusDateTime.isNotEmpty()){
+                        val currentTime1 = AssetUtils.getSystemDateTime()
+                        val difference1 = AssetUtils.getTimeDifferenceInSeconds(statusDateTime, currentTime1)
+                        Log.e("DIFF", difference1.toString())
+                        if (difference1 >= 0) {
+                            if (difference1 > 20) {
+                                withContext(Dispatchers.Main) {
+                                    Log.e("StatusCheck", "Time exceeded 20 seconds!")
+                                    if (Is_App_Running) {
+                                        Is_App_Running = false
+                                       binding.appLed.setImageResource(R.drawable.off_indicator)
+                                    }
+                                }
+                            }
+                        }
+                        else {
+                            Log.e("StatusCheck", "Invalid time difference calculation.")
+                        }
+                    }
+                    else{
+                        if (Is_App_Running) {
+                            Is_App_Running = false
+                            binding.appLed.setImageResource(R.drawable.custom_off_button)
+                        }
+                    }
+                    if(binDateTime.isNotEmpty()){
+                        val currentTime2 = AssetUtils.getSystemDateTime()
+                        val difference2 = AssetUtils.getTimeDifferenceInSeconds(binDateTime, currentTime2)
+                        Log.e("DIFFBin", difference2.toString())
+                        if (difference2 >= 0) {
+                            if (difference2 > 10) {
+                                withContext(Dispatchers.Main) {
+                                    Log.e("StatusCheck", "Time exceeded 20 seconds!")
+                                    if (Is_Bin_Running) {
+                                        Is_Bin_Running = false
+                                        currentBinDestination = "__"
+                                    }
+                                }
+                            }
+                        }
+                        else {
+                            Log.e("StatusCheck", "Invalid time difference calculation.")
+                        }
+                    }
+                    else{
+                        if (Is_Bin_Running) {
+                            Is_Bin_Running = false
+                            currentBinDestination = "__"
+                        }
+                    }
+                    delay(1000) // Check every 1 second
+                }
+            }
+
+    }
+
     private fun setDefault() {
         stopHandler()
         orderDetailsList.clear()
         recOrderDetailsList.clear()
         disOrderDetailsList.clear()
         cd.unregisterNetworkCallback()
-        mqttConnection.disconnect()
-        resetLED()
-        binding.appLed.setImageResource(R.drawable.off_indicator)
-        binding.textPalletNo.text = ""
-        binding.textDestination.text = ""
-        bottomSheetDialog?.dismiss()
+        CoroutineScope(Dispatchers.IO).launch {
+            mqttConnection.disconnect()
+        }
+        runOnUiThread {
+            resetLED()
+            binding.appLed.setImageResource(R.drawable.off_indicator)
+            binding.textPalletNo.text = ""
+            binding.textDestination.text = ""
+            bottomSheetDialog?.dismiss()
+        }
+    }
+    private fun startReader(action: String) {
+        val jsonObject = JsonObject()
+        jsonObject.addProperty("messageType", "Command")
+        jsonObject.addProperty("pubDeviceID", sharedPreferencesManager.getDeviceId())
+        jsonObject.addProperty("subDeviceID", sharedPreferencesManager.getPairedDeviceID())
+        val dataObject = JsonObject()
+        dataObject.addProperty("ReaderCommand", action)
+        jsonObject.add("data", dataObject)
+        val commandTopic = topics?.get("Command") ?: ""
+        val pubTopic = commandTopic+sharedPreferencesManager.getDeviceId()+"/operation"
+        if(mqttConnection.isConnected()){
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                val isPublished = publishMessageAsync(pubTopic, jsonObject.toString())
+                if (isPublished) {
+                    Log.e("Success", "Published Successfully")
+                    //synchronized(messageStack) {
+//                    if (messageStack.isNotEmpty() && messageStack.peek().second == message) {
+//                        messageStack.pop() // Remove the message only after successful publishing
+//                    }
+                    //}
+                } else {
+                    Log.e("Failure", "Publish failed")
+
+                }
+                } catch (e: Exception) {
+                    Log.e("Error", "Publishing error: ${e.message}")
+                }
+            }
+        }
+    }
+    private suspend fun publishMessageAsync(topicName: String, message: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val result = CompletableDeferred<Boolean>()
+
+                mqttPub.publishMessage(mqttConnection, topicName, message, object :
+                    MqttResponseCallback {
+                    override fun onPublishSuccess() {
+                        result.complete(true)
+                    }
+
+                    override fun onPublishFailure(error: String) {
+                        result.complete(false)
+                    }
+                })
+
+                result.await() // Wait for publish result
+            } catch (e: Exception) {
+                Log.e("MQTT", "Publish exception: ${e.message}")
+                false
+            }
+        }
     }
 
     override fun onDestroy() {
@@ -982,5 +1214,10 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
     override fun onBackPressed() {
         setDefault()
         super.onBackPressed()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        startTimerCheck()
     }
 }

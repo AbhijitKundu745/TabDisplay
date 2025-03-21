@@ -9,6 +9,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.psl.tabdisplay.R
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 import java.util.TimeZone
 
 object AssetUtils {
@@ -106,6 +107,31 @@ object AssetUtils {
             // return "1970-01-01 00:00:00";
             return "1970-01-01 00:00:00"
         }
+    }
+    fun getSystemDateTime(): String {
+        val f = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        return f.format(Date()) // Returns local device time
+    }
+
+    fun getTimeDifferenceInSeconds(startTime: String, endTime: String): Long {
+        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+
+        // Check if startTime or endTime is empty
+        if (startTime.isEmpty() || endTime.isEmpty()) {
+            // Return a default value or throw an exception
+            return -1 // Indicating an error
+        }
+
+        val startDate = sdf.parse(startTime)
+        val endDate = sdf.parse(endTime)
+
+        // Check if parsing was successful
+        if (startDate == null || endDate == null) {
+            // Return a default value or throw an exception
+            return -1 // Indicating an error
+        }
+
+        return (endDate.time - startDate.time) / 1000
     }
 
 }

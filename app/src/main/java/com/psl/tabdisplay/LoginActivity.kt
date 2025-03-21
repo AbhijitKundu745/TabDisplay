@@ -75,9 +75,9 @@ class LoginActivity : AppCompatActivity(), ConnectionManager.ConnectionListener 
             binding.edtUserName.setText("")
             binding.edtPassword.setText("")
         }
-        binding.imgSync.setOnClickListener{
-            sync()
-        }
+//        binding.imgSync.setOnClickListener{
+//            sync()
+//        }
         binding.btnLogin.setOnClickListener{
             if(db.getAssetMasterCount()>0) {
                 if (sharedPreferencesManager.getIsHostConfig()) {

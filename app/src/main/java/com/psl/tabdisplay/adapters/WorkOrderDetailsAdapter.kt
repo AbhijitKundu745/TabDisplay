@@ -13,7 +13,7 @@ import com.psl.tabdisplay.models.OrderDetails
 
 class WorkOrderDetailsAdapter(
     private val context: Context,
-    private val orderDetailList: List<OrderDetails>,
+    private val orderDetailList: MutableList<OrderDetails>,
     private val orderType: String
 ) : RecyclerView.Adapter<WorkOrderDetailsAdapter.ItemViewHolder>() {
 
