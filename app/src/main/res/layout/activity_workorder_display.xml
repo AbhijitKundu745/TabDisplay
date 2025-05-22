@@ -64,6 +64,7 @@
                     android:layout_marginRight="8dp"
                     android:gravity="center"
                     android:layout_gravity="center"
+                    android:textColor="@color/theme_text"
                     />
 
                 <ImageView
@@ -95,7 +96,8 @@
                     android:textAlignment="center"
                     android:layout_marginRight="8dp"
                     android:layout_gravity="center"
-                    android:gravity="center"/>
+                    android:gravity="center"
+                    android:textColor="@color/theme_text"/>
 <!--                <androidx.appcompat.widget.AppCompatButton-->
 <!--                    android:id="@+id/btnOnOff"-->
 <!--                    android:layout_width="0dp"-->
@@ -138,7 +140,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Antenna"
-                android:textColor="#0159A9"
+                android:textColor="@color/theme_text"
                 android:textSize="20sp"
                 android:textStyle="bold"
                 android:gravity="center_horizontal"/>
@@ -350,7 +352,8 @@
                         android:text="Pallet Name"
                         android:textAlignment="center"
                         android:textStyle="bold"
-                        android:textSize="25sp"/>
+                        android:textSize="25sp"
+                        android:textColor="@color/theme_text"/>
                     <TextView
                         android:id="@+id/textPalletNo"
                         android:layout_width="match_parent"
@@ -363,7 +366,7 @@
                         android:textSize="20sp"
                         android:layout_gravity="center"
                         android:gravity="center"
-                        android:background="@color/lighter_grey"
+                        android:background="@color/cyan"
                         android:layout_marginTop="5dp"/>
                 </LinearLayout>
                 <LinearLayout
@@ -379,7 +382,8 @@
                         android:text="Destination"
                         android:textAlignment="center"
                         android:textStyle="bold"
-                        android:textSize="25sp"/>
+                        android:textSize="25sp"
+                        android:textColor="@color/theme_text"/>
                     <TextView
                         android:id="@+id/textDestination"
                         android:layout_width="match_parent"
@@ -392,7 +396,7 @@
                         android:textSize="20sp"
                         android:layout_gravity="center"
                         android:gravity="center"
-                        android:background="@color/lighter_grey"
+                        android:background="@color/cyan"
                         android:layout_marginTop="5dp"/>
                 </LinearLayout>
             </LinearLayout>
@@ -412,9 +416,9 @@
                     android:layout_height="wrap_content"
                     android:padding="5dp"
                     android:layout_marginStart="5dp"
-                    android:text="RECEIVING DETAILS"
+                    android:text="RECEIVING TASKS"
                     android:textAlignment="textStart"
-                    android:textColor="#0159A9"
+                    android:textColor="@color/theme_text"
                     android:textSize="25sp"
                     android:textStyle="bold" />
                 <TextView
@@ -423,7 +427,7 @@
                     android:padding="5dp"
                     android:text="Count:"
                     android:textAlignment="textEnd"
-                    android:textColor="#0159A9"
+                    android:textColor="@color/theme_text"
                     android:textSize="25sp"
                     android:textStyle="bold" />
                 <TextView
@@ -433,7 +437,7 @@
                     android:text="0"
                     android:padding="5dp"
                     android:textAlignment="textEnd"
-                    android:textColor="#0159A9"
+                    android:textColor="@color/theme_text"
                     android:textSize="25sp"
                     android:textStyle="bold" />
             </LinearLayout>
@@ -442,7 +446,6 @@
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="0.3"
-                android:background="@color/orange1"
                 >
                 <TextView
                     android:layout_width="0dp"
@@ -453,7 +456,7 @@
                     android:padding="5dp"
                     android:textStyle="bold"
                     android:text="Sr"
-                    android:background="@color/orange1"
+                    android:background="@color/theme_text"
                     android:textColor="@color/white"
                     android:layout_gravity="center"
                     android:gravity="center"/>
@@ -467,7 +470,7 @@
                     android:textSize="25sp"
                     android:textStyle="bold"
                     android:padding="5dp"
-                    android:background="@color/orange1"
+                    android:background="@color/theme_text"
                     android:textColor="@color/white"
                     android:layout_gravity="center"
                     android:gravity="center"/>
@@ -480,7 +483,7 @@
                     android:textSize="25sp"
                     android:textStyle="bold"
                     android:padding="5dp"
-                    android:background="@color/orange1"
+                    android:background="@color/theme_text"
                     android:textColor="@color/white"
                     android:layout_gravity="center"
                     android:gravity="center"/>
@@ -489,7 +492,7 @@
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
-                    android:background="@color/orange1"
+                    android:background="@color/theme_text"
                     android:padding="5dp"
                     android:text="WO Type"
                     android:textAlignment="center"
@@ -508,7 +511,7 @@
                     android:textSize="25sp"
                     android:textStyle="bold"
                     android:padding="5dp"
-                    android:background="@color/orange1"
+                    android:background="@color/theme_text"
                     android:textColor="@color/white"
                     android:layout_gravity="center"
                     android:gravity="center"/>
@@ -535,9 +538,9 @@
                     android:layout_height="wrap_content"
                     android:padding="5dp"
                     android:layout_marginStart="5dp"
-                    android:text="DISPATCH DETAILS"
+                    android:text="DISPATCH TASKS"
                     android:textAlignment="textStart"
-                    android:textColor="#0159A9"
+                    android:textColor="@color/theme_text"
                     android:textSize="25sp"
                     android:textStyle="bold" />
                 <TextView
@@ -546,7 +549,7 @@
                     android:padding="5dp"
                     android:text="Count:"
                     android:textAlignment="textEnd"
-                    android:textColor="#0159A9"
+                    android:textColor="@color/theme_text"
                     android:textSize="25sp"
                     android:textStyle="bold" />
                 <TextView
@@ -556,7 +559,7 @@
                     android:text="0"
                     android:padding="5dp"
                     android:textAlignment="textEnd"
-                    android:textColor="#0159A9"
+                    android:textColor="@color/theme_text"
                     android:textSize="25sp"
                     android:textStyle="bold" />
             </LinearLayout>
@@ -574,7 +577,7 @@
                     android:padding="5dp"
                     android:textStyle="bold"
                     android:text="Sr"
-                    android:background="@color/orange1"
+                    android:background="@color/theme_text"
                     android:textColor="@color/white"
                     android:layout_gravity="center"
                     android:gravity="center"/>
@@ -588,7 +591,7 @@
                     android:textSize="25sp"
                     android:textStyle="bold"
                     android:padding="5dp"
-                    android:background="@color/orange1"
+                    android:background="@color/theme_text"
                     android:textColor="@color/white"
                     android:layout_gravity="center"
                     android:gravity="center"/>
@@ -601,7 +604,7 @@
                     android:textSize="24sp"
                     android:textStyle="bold"
                     android:padding="5dp"
-                    android:background="@color/orange1"
+                    android:background="@color/theme_text"
                     android:textColor="@color/white"
                     android:layout_gravity="center"
                     android:gravity="center"/>
@@ -610,7 +613,7 @@
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
-                    android:background="@color/orange1"
+                    android:background="@color/theme_text"
                     android:padding="5dp"
                     android:text="WO Type"
                     android:textAlignment="center"
@@ -629,7 +632,7 @@
                     android:textSize="25sp"
                     android:textStyle="bold"
                     android:padding="5dp"
-                    android:background="@color/orange1"
+                    android:background="@color/theme_text"
                     android:textColor="@color/white"
                     android:layout_gravity="center"
                     android:gravity="center"/>

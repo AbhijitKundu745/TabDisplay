@@ -79,7 +79,7 @@ class LoginActivity : AppCompatActivity(), ConnectionManager.ConnectionListener 
 //            sync()
 //        }
         binding.btnLogin.setOnClickListener{
-            if(db.getAssetMasterCount()>0) {
+            //if(db.getAssetMasterCount()>0) {
                 if (sharedPreferencesManager.getIsHostConfig()) {
                     val user = binding.edtUserName.text.toString().trim()
                     val password = binding.edtPassword.text.toString().trim()
@@ -119,13 +119,13 @@ class LoginActivity : AppCompatActivity(), ConnectionManager.ConnectionListener 
                         resources.getString(R.string.url_not_config)
                     )
                 }
-            }
-            else{
-                AssetUtils.showCommonBottomSheetErrorDialog(
-                    context,
-                    "Please sync all assests"
-                )
-            }
+//            }
+//            else{
+//                AssetUtils.showCommonBottomSheetErrorDialog(
+//                    context,
+//                    "Please sync all assests"
+//                )
+//            }
         }
         binding.imgSetting.setOnClickListener{
             val intent = Intent(context, UrlConfigActivity::class.java)

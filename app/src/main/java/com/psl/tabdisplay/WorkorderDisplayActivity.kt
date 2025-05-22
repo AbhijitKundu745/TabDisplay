@@ -94,9 +94,9 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
     private lateinit var customConfirmationDialog : Dialog
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var db : DBHandler
-    private var timerDateTime : String = "";
-    private var statusDateTime : String = "";
-    private var binDateTime : String = "";
+    private var timerDateTime : String = ""
+    private var statusDateTime : String = ""
+    private var binDateTime : String = ""
     private var Is_Popup_Showing : Boolean = false
     private var Is_App_Running : Boolean = false
     private var Is_Bin_Running : Boolean = false
@@ -1213,7 +1213,7 @@ class WorkorderDisplayActivity : AppCompatActivity(), ConnectionManager.Connecti
 
     override fun onBackPressed() {
         setDefault()
-        super.onBackPressed()
+       finish()
     }
 
     override fun onResume() {

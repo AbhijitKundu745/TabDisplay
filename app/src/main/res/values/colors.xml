@@ -14,4 +14,8 @@
     <color name="cyan1">#809FFF</color>
     <color name="lemonyellow">#FFFACD</color>
     <color name="orange">#FF5900</color>
+    <color name="theme_text">#002699</color>
+    <color name="cyan">#E4F1FBFF</color>
+    <color name="light_purple">#ECD6F4</color>
+    <color name="light_maroon">#7E0044</color>
 </resources>

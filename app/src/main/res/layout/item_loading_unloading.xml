@@ -15,7 +15,8 @@
         android:textStyle="bold"
         android:padding="5dp"
         android:layout_gravity="center"
-        android:gravity="center"/>
+        android:gravity="center"
+        android:textColor="@color/theme_text"/>
 
     <TextView
         android:id="@+id/itemPalletNo"
@@ -30,7 +31,8 @@
         android:textStyle="bold"
         android:padding="5dp"
         android:layout_gravity="center"
-        android:gravity="center"/>
+        android:gravity="center"
+        android:textColor="@color/theme_text"/>
     <TextView
         android:id="@+id/itemPickup"
         android:layout_width="0dp"
@@ -44,7 +46,8 @@
         android:textStyle="bold"
         android:padding="5dp"
         android:layout_gravity="center"
-        android:gravity="center"/>
+        android:gravity="center"
+        android:textColor="@color/theme_text"/>
     <TextView
         android:id="@+id/itemWOtype"
         android:layout_width="0dp"
@@ -58,7 +61,8 @@
         android:textStyle="bold"
         android:padding="5dp"
         android:layout_gravity="center"
-        android:gravity="center"/>
+        android:gravity="center"
+        android:textColor="@color/theme_text"/>
     <TextView
         android:id="@+id/itemStatus"
         android:layout_width="0dp"
@@ -72,5 +76,6 @@
         android:textStyle="bold"
         android:padding="5dp"
         android:layout_gravity="center"
-        android:gravity="center"/>
+        android:gravity="center"
+        android:textColor="@color/theme_text"/>
 </LinearLayout>

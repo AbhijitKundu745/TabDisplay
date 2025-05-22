@@ -40,8 +40,11 @@ class WorkOrderDetailsAdapter(
         holder.itemPickup.text = order.pickupLocation
         holder.itemPickup.isSelected = true
         order.pickupLocation?.let { Log.e("Pickup Location", it) }
-        holder.itemWOType.text = order.workorderType
-        holder.itemWOType.isSelected = true
+        when(order.workorderType) {
+            "U1" -> holder.itemWOType.text = "To Bin"
+            "L0" -> holder.itemWOType.text = "From Bin"
+            "I0" -> holder.itemWOType.text = "To Bin"
+        }
         holder.itemStatus.text = order.listItemStatus
         holder.itemStatus.isSelected = true
 
@@ -49,7 +52,7 @@ class WorkOrderDetailsAdapter(
             holder.itemStatus.setTextColor(ContextCompat.getColor(context, R.color.green))
         }
 
-        when (orderType) {
+        when (order.workorderType) {
             "U0", "U1", "L0", "L1", "I0" -> {
                 holder.itemSerialNo.visibility = View.VISIBLE
                 holder.itemPalletNo.visibility = View.VISIBLE
@@ -66,20 +69,10 @@ class WorkOrderDetailsAdapter(
             holder.itemPickup.setTextColor(context.resources.getColor(R.color.white))
             holder.itemWOType.setTextColor(context.resources.getColor(R.color.white))
             holder.itemStatus.setTextColor(context.resources.getColor(R.color.white))
-            holder.itemView.setBackgroundColor(context.resources.getColor(R.color.orange))
+            holder.itemView.setBackgroundColor(context.resources.getColor(R.color.light_maroon))
         } else if (position % 2 == 0) {
-            holder.itemSerialNo.setTextColor(ContextCompat.getColor(context, R.color.black))
-            holder.itemPalletNo.setTextColor(ContextCompat.getColor(context, R.color.black))
-            holder.itemPickup.setTextColor(ContextCompat.getColor(context, R.color.black))
-            holder.itemWOType.setTextColor(ContextCompat.getColor(context, R.color.black))
-            holder.itemStatus.setTextColor(ContextCompat.getColor(context, R.color.black))
-            holder.itemView.setBackgroundColor(ContextCompat.getColor(context, R.color.cyan1))
+            holder.itemView.setBackgroundColor(ContextCompat.getColor(context, R.color.light_purple))
         } else {
-            holder.itemSerialNo.setTextColor(ContextCompat.getColor(context, R.color.black))
-            holder.itemPalletNo.setTextColor(ContextCompat.getColor(context, R.color.black))
-            holder.itemPickup.setTextColor(ContextCompat.getColor(context, R.color.black))
-            holder.itemWOType.setTextColor(ContextCompat.getColor(context, R.color.black))
-            holder.itemStatus.setTextColor(ContextCompat.getColor(context, R.color.black))
             holder.itemView.setBackgroundColor(ContextCompat.getColor(context, R.color.lemonyellow))
         }
     }
